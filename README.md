@@ -1,4 +1,4 @@
-# Telegram VPN Bot - Telegram бот для продажи VPN с автоматической оплатой через ЮKassa
+# Telegram бот для продажи VPN с автоматической оплатой через ЮKassa
 
 ---
 
