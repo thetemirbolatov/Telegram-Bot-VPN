@@ -1,9 +1,6 @@
 Telegram VPN Bot - Telegram бот для продажи VPN с автоматической оплатой через ЮKassa
 
-https://img.shields.io/badge/License-MIT-blue.svg
-https://img.shields.io/badge/Python-3.7%2B-green.svg
-https://img.shields.io/badge/Telegram-Bot-blue.svg
-https://img.shields.io/badge/Payments-YooKassa-8A2BE2.svg
+–––
 
 Telegram VPN Bot - это мощный и многофункциональный Telegram бот для автоматизации продажи VPN-подписок с интеграцией платежной системы ЮKassa. Бот поддерживает протоколы VLESS и V2Ray (XRay), обеспечивает полностью автоматическую выдачу конфигурационных ключей после успешной оплаты, имеет встроенную реферальную систему с начислением 25% от платежей приглашенных пользователей, а также предоставляет обширную административную панель для полного контроля над бизнесом.
 
