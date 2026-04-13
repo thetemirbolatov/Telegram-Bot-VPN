@@ -1,641 +1,415 @@
 #!/bin/bash
 
-# ╔══════════════════════════════════════════════════════════════════╗
-# ║     XRARY VPN BOT - Professional Installer                        ║
-# ║     Author: thetemirbolatov                                       ║
-# ║     GitHub: thetemirbolatov-official                              ║
-# ║     Version: 2.0.0                                                ║
-# ╚═══════════════════════════════════════════════════════════════════╝
+# XRARY VPN BOT - Professional Installer
+# Author: thetemirbolatov
+# GitHub: thetemirbolatov-official
+# Contacts: @thetemirbolatov (Telegram, VK, Instagram)
 
-set -e  # Остановка при любой ошибке
+set -e
 
-# ═══════════════════════════════════════════════════════════════════
-# КОНФИГУРАЦИЯ
-# ═══════════════════════════════════════════════════════════════════
 INSTALL_DIR="/opt/xrary-vpn-bot"
 SERVICE_NAME="xrary-bot"
-BOT_SCRIPT="vpn.py"
 GITHUB_REPO="https://github.com/thetemirbolatov-official/Telegram-Bot-VPN.git"
 AUTHOR="thetemirbolatov"
 VERSION="2.0.0"
 
-# Цвета для вывода
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m' # No Color
+WHITE='\033[1;37m'
+NC='\033[0m'
 
-# ═══════════════════════════════════════════════════════════════════
-# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-# ═══════════════════════════════════════════════════════════════════
+# Spinner animation
+spinner() {
+    local pid=$1
+    local delay=0.1
+    local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    while ps -p $pid > /dev/null 2>&1; do
+        local temp=${spinstr#?}
+        printf " ${CYAN}%c${NC}  " "$spinstr"
+        local spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+        printf "\b\b\b\b\b"
+    done
+    printf "    \b\b\b\b"
+}
 
-print_banner() {
+# Progress bar
+progress() {
+    local duration=$1
+    local steps=20
+    for ((i=0; i<=steps; i++)); do
+        local percent=$((i * 100 / steps))
+        local filled=$((i * 30 / steps))
+        local empty=$((30 - filled))
+        printf "\r  ${BLUE}[${NC}"
+        printf "%${filled}s" | tr ' ' '█'
+        printf "%${empty}s" | tr ' ' '░'
+        printf "${BLUE}]${NC} %3d%%" $percent
+        sleep $(echo "scale=2; $duration/$steps" | bc)
+    done
+    echo ""
+}
+
+print_header() {
     clear
     echo -e "${CYAN}"
-    echo "╔══════════════════════════════════════════════════════════════════╗"
-    echo "║                                                                  ║"
-    echo "║     ██╗  ██╗██████╗  █████╗ ██████╗ ██╗   ██╗                    ║"
-    echo "║     ╚██╗██╔╝██╔══██╗██╔══██╗██╔══██╗╚██╗ ██╔╝                    ║"
-    echo "║      ╚███╔╝ ██████╔╝███████║██████╔╝ ╚████╔╝                     ║"
-    echo "║      ██╔██╗ ██╔══██╗██╔══██║██╔══██╗  ╚██╔╝                      ║"
-    echo "║     ██╔╝ ██╗██║  ██║██║  ██║██║  ██║   ██║                       ║"
-    echo "║     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝                       ║"
-    echo "║                                                                  ║"
-    echo "║                    VPN TELEGRAM BOT                              ║"
-    echo "║                   Professional Installer                         ║"
-    echo "║                                                                  ║"
-    echo "║              Author: ${AUTHOR}                               ║"
-    echo "║              Version: ${VERSION}                                   ║"
-    echo "║                                                                  ║"
-    echo "╚══════════════════════════════════════════════════════════════════╝"
+    echo "   ██╗  ██╗██████╗  █████╗ ██████╗ ██╗   ██╗"
+    echo "   ╚██╗██╔╝██╔══██╗██╔══██╗██╔══██╗╚██╗ ██╔╝"
+    echo "    ╚███╔╝ ██████╔╝███████║██████╔╝ ╚████╔╝ "
+    echo "    ██╔██╗ ██╔══██╗██╔══██║██╔══██╗  ╚██╔╝  "
+    echo "   ██╔╝ ██╗██║  ██║██║  ██║██║  ██║   ██║   "
+    echo "   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   "
     echo -e "${NC}"
-}
-
-print_status() {
-    echo -e "${BLUE}[*]${NC} $1"
-}
-
-print_success() {
-    echo -e "${GREEN}[+]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[-]${NC} $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[!]${NC} $1"
-}
-
-print_info() {
-    echo -e "${CYAN}[i]${NC} $1"
+    echo -e "${WHITE}            VPN Telegram Bot Installer${NC}"
+    echo -e "${BLUE}           Author: ${AUTHOR} | v${VERSION}${NC}"
+    echo ""
+    echo -e "${CYAN}──────────────────────────────────────────────────────────────${NC}"
+    echo ""
 }
 
 print_step() {
-    echo -e "\n${PURPLE}${BOLD}▶ $1${NC}"
+    echo -e "\n${CYAN}▸${NC} ${WHITE}$1${NC}"
 }
 
-# Проверка прав root
+print_ok() {
+    echo -e "  ${GREEN}✓${NC} $1"
+}
+
+print_err() {
+    echo -e "  ${RED}✗${NC} $1"
+}
+
+print_info() {
+    echo -e "  ${BLUE}ℹ${NC} $1"
+}
+
 check_root() {
     if [[ $EUID -ne 0 ]]; then
-        print_error "Этот скрипт должен запускаться с правами root (sudo)"
-        print_info "Используйте: sudo ./install.sh"
+        echo -e "${RED}Error: Run with sudo${NC}"
         exit 1
     fi
 }
 
-# Проверка интернет-соединения
-check_internet() {
-    print_status "Проверка интернет-соединения..."
-    if ping -c 1 google.com &> /dev/null; then
-        print_success "Интернет-соединение активно"
-    else
-        print_error "Нет интернет-соединения"
+check_net() {
+    print_info "Checking internet..."
+    if ! ping -c 1 google.com &> /dev/null; then
+        print_err "No internet connection"
         exit 1
     fi
+    print_ok "Internet OK"
 }
 
-# Проверка версии Ubuntu/Debian
-check_os() {
-    print_status "Проверка операционной системы..."
-    if [ -f /etc/os-release ]; then
-        . /etc/os-release
-        if [[ "$ID" == "ubuntu" ]] || [[ "$ID" == "debian" ]]; then
-            print_success "ОС: $NAME $VERSION"
-        else
-            print_warning "Рекомендуется Ubuntu/Debian. Текущая ОС: $NAME"
-        fi
-    else
-        print_warning "Не удалось определить ОС"
-    fi
+install_system() {
+    print_step "Installing system packages"
+    
+    print_info "Updating apt..."
+    apt-get update -qq &
+    spinner $!
+    
+    print_info "Installing python3, pip, git..."
+    apt-get install -y python3 python3-pip python3-venv git wget curl \
+        libjpeg-dev zlib1g-dev libfreetype6-dev libopenblas-dev > /dev/null 2>&1 &
+    spinner $!
+    
+    print_ok "System packages installed"
 }
 
-# ═══════════════════════════════════════════════════════════════════
-# ОСНОВНЫЕ ФУНКЦИИ УСТАНОВКИ
-# ═══════════════════════════════════════════════════════════════════
-
-# Установка системных зависимостей
-install_system_dependencies() {
-    print_step "Шаг 1/8: Установка системных зависимостей"
-    
-    print_status "Обновление списка пакетов..."
-    apt-get update -qq
-    
-    print_status "Установка необходимых пакетов..."
-    apt-get install -y \
-        python3 \
-        python3-pip \
-        python3-venv \
-        python3-dev \
-        git \
-        wget \
-        curl \
-        nano \
-        htop \
-        ufw \
-        build-essential \
-        libssl-dev \
-        libffi-dev \
-        libjpeg-dev \
-        zlib1g-dev \
-        libpng-dev \
-        libfreetype6-dev \
-        liblcms2-dev \
-        libwebp-dev \
-        libharfbuzz-dev \
-        libfribidi-dev \
-        libxcb1-dev \
-        libx11-dev \
-        libxext-dev \
-        libxrender-dev \
-        libxrandr-dev \
-        libxi-dev \
-        libxtst-dev \
-        libatlas-base-dev \
-        gfortran \
-        libopenblas-dev \
-        liblapack-dev 2>&1 | grep -v "does not exist"
-    
-    if [ $? -eq 0 ]; then
-        print_success "Системные зависимости установлены"
-    else
-        print_error "Ошибка установки системных зависимостей"
-        exit 1
-    fi
-}
-
-# Клонирование репозитория
-clone_repository() {
-    print_step "Шаг 2/8: Клонирование репозитория"
+clone_repo() {
+    print_step "Cloning repository"
     
     if [ -d "$INSTALL_DIR" ]; then
-        print_warning "Директория $INSTALL_DIR уже существует"
-        read -p "Хотите перезаписать? (y/n): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            print_status "Удаление старой версии..."
-            systemctl stop ${SERVICE_NAME} 2>/dev/null || true
-            rm -rf "$INSTALL_DIR"
-            print_success "Старая версия удалена"
-        else
-            print_error "Установка отменена"
-            exit 1
-        fi
+        print_info "Removing old installation..."
+        rm -rf "$INSTALL_DIR"
     fi
     
-    print_status "Клонирование из GitHub..."
-    git clone --depth 1 "$GITHUB_REPO" "$INSTALL_DIR"
+    print_info "Cloning from GitHub..."
+    git clone --depth 1 "$GITHUB_REPO" "$INSTALL_DIR" > /dev/null 2>&1 &
+    spinner $!
     
-    if [ $? -eq 0 ]; then
-        print_success "Репозиторий успешно склонирован в $INSTALL_DIR"
-    else
-        print_error "Ошибка клонирования репозитория"
-        print_info "Проверьте доступ к: $GITHUB_REPO"
-        exit 1
-    fi
+    print_ok "Repository cloned"
 }
 
-# Создание виртуального окружения Python
-setup_python_env() {
-    print_step "Шаг 3/8: Настройка Python окружения"
+setup_venv() {
+    print_step "Setting up Python environment"
     
     cd "$INSTALL_DIR"
     
-    print_status "Создание виртуального окружения..."
-    python3 -m venv venv
+    print_info "Creating virtual environment..."
+    python3 -m venv venv &
+    spinner $!
     
-    print_status "Активация виртуального окружения..."
     source venv/bin/activate
     
-    print_status "Обновление pip..."
-    pip install --upgrade pip setuptools wheel
+    print_info "Upgrading pip..."
+    pip install --upgrade pip -q &
+    spinner $!
     
-    print_success "Виртуальное окружение создано"
+    print_ok "Virtual environment ready"
 }
 
-# Установка Python библиотек
-install_python_packages() {
-    print_step "Шаг 4/8: Установка Python библиотек"
+install_python() {
+    print_step "Installing Python packages"
     
     cd "$INSTALL_DIR"
     source venv/bin/activate
     
-    print_status "Установка основных библиотек..."
+    local pkgs=(
+        "telebot"
+        "qrcode"
+        "Pillow"
+        "openpyxl"
+        "pandas"
+        "numpy"
+        "yookassa"
+        "python-dotenv"
+    )
     
-    # Основные библиотеки бота
-    pip install --no-cache-dir pyTelegramBotAPI==4.14.0
-    pip install --no-cache-dir requests==2.31.0
-    pip install --no-cache-dir urllib3==2.0.7
-    
-    # Библиотеки для QR-кодов и изображений
-    pip install --no-cache-dir qrcode==7.4.2
-    pip install --no-cache-dir Pillow==10.1.0
-    pip install --no-cache-dir pillow-heif==0.13.1
-    
-    # Работа с Excel и данными
-    pip install --no-cache-dir openpyxl==3.1.2
-    pip install --no-cache-dir pandas==2.1.3
-    pip install --no-cache-dir numpy==1.26.2
-    
-    # Платежная система
-    pip install --no-cache-dir yookassa==2.2.0
-    
-    # Дополнительные библиотеки
-    pip install --no-cache-dir python-dotenv==1.0.0
-    pip install --no-cache-dir colorama==0.4.6
-    pip install --no-cache-dir tqdm==4.66.1
-    
-    # Проверка установки критических библиотек
-    print_status "Проверка установки критических библиотек..."
-    
-    local failed=0
-    for lib in "telebot" "requests" "qrcode" "PIL" "openpyxl" "pandas" "numpy" "yookassa"; do
-        if python -c "import $lib" 2>/dev/null; then
-            echo -e "  ${GREEN}✓${NC} $lib"
-        else
-            echo -e "  ${RED}✗${NC} $lib"
-            failed=1
-        fi
+    for pkg in "${pkgs[@]}"; do
+        print_info "Installing ${pkg}..."
+        pip install --no-cache-dir "$pkg" -q &
+        spinner $!
     done
     
-    if [ $failed -eq 0 ]; then
-        print_success "Все Python библиотеки успешно установлены"
-    else
-        print_error "Некоторые библиотеки не установлены"
-        print_info "Попробуйте установить вручную: pip install -r requirements.txt"
-    fi
-    
-    deactivate
+    print_ok "All Python packages installed"
 }
 
-# Создание requirements.txt
-create_requirements_file() {
-    print_step "Шаг 5/8: Создание requirements.txt"
+create_req() {
+    print_step "Creating requirements.txt"
     
     cat > "$INSTALL_DIR/requirements.txt" << 'EOF'
-# ╔══════════════════════════════════════════════════════════════════╗
-# ║     XRARY VPN BOT - Requirements                                  ║
-# ║     Author: thetemirbolatov                                       ║
-# ║     GitHub: thetemirbolatov-official                              ║
-# ╚═══════════════════════════════════════════════════════════════════╝
-
-# Core Telegram Bot
 telebot
-
-# HTTP Requests
-urllib3==2.0.7
-
-# QR Code Generation
-qrcode==7.4.2
-
-# Image Processing
-Pillow==10.1.0
-pillow-heif==0.13.1
-
-# Excel & Data Processing
-openpyxl==3.1.2
-pandas==2.1.3
-numpy==1.26.2
-
-# Payment Integration
-yookassa==2.2.0
-
-# Additional Utilities
-python-dotenv==1.0.0
-colorama==0.4.6
-tqdm==4.66.1
+qrcode
+Pillow
+openpyxl
+pandas
+numpy
+yookassa
+python-dotenv
 EOF
 
-    print_success "Файл requirements.txt создан"
+    print_ok "requirements.txt created"
 }
 
-# Создание рабочих директорий
-create_working_directories() {
-    print_step "Шаг 6/8: Создание рабочих директорий"
+create_dirs() {
+    print_step "Creating directories"
     
     cd "$INSTALL_DIR"
+    mkdir -p backups exports qrcodes
+    chmod 755 backups exports qrcodes
     
-    mkdir -p backups exports qrcodes temp_restore
-    
-    # Установка прав
-    chmod 755 backups exports qrcodes temp_restore
-    chown -R root:root "$INSTALL_DIR"
-    
-    print_success "Рабочие директории созданы"
+    print_ok "Directories created"
 }
 
-# Создание systemd сервиса
-create_systemd_service() {
-    print_step "Шаг 7/8: Создание systemd сервиса"
+create_service() {
+    print_step "Creating systemd service"
     
     cat > "/etc/systemd/system/${SERVICE_NAME}.service" << EOF
 [Unit]
 Description=Xrary VPN Telegram Bot
-Documentation=https://github.com/thetemirbolatov-official/Telegram-Bot-VPN
-After=network.target network-online.target
-Wants=network-online.target
+After=network.target
 
 [Service]
 Type=simple
 User=root
-Group=root
 WorkingDirectory=${INSTALL_DIR}
-Environment="PATH=${INSTALL_DIR}/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-Environment="PYTHONUNBUFFERED=1"
-Environment="PYTHONDONTWRITEBYTECODE=1"
-ExecStart=${INSTALL_DIR}/venv/bin/python3 ${INSTALL_DIR}/${BOT_SCRIPT}
+Environment="PATH=${INSTALL_DIR}/venv/bin"
+ExecStart=${INSTALL_DIR}/venv/bin/python3 ${INSTALL_DIR}/vpn.py
 Restart=always
 RestartSec=10
-StartLimitInterval=60
-StartLimitBurst=3
 StandardOutput=append:${INSTALL_DIR}/bot.log
 StandardError=append:${INSTALL_DIR}/bot_error.log
-SyslogIdentifier=${SERVICE_NAME}
-
-# Security
-PrivateTmp=true
-NoNewPrivileges=false
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
     systemctl daemon-reload
-    
-    if [ -f "/etc/systemd/system/${SERVICE_NAME}.service" ]; then
-        print_success "Systemd сервис создан"
-    else
-        print_error "Ошибка создания systemd сервиса"
-        exit 1
-    fi
+    print_ok "Service created"
 }
 
-# Создание глобальных команд
-create_global_commands() {
-    print_step "Шаг 8/8: Создание глобальных команд"
+create_cmd() {
+    print_step "Creating global command 'xrary'"
     
     cat > "/usr/local/bin/xrary" << 'EOF'
 #!/bin/bash
 
-# ╔══════════════════════════════════════════════════════════════════╗
-# ║     XRARY VPN BOT - Command Line Interface                        ║
-# ║     Author: thetemirbolatov                                       ║
-# ╚═══════════════════════════════════════════════════════════════════╝
-
-INSTALL_DIR="/opt/xrary-vpn-bot"
-SERVICE_NAME="xrary-bot"
-
-# Цвета
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
+WHITE='\033[1;37m'
 NC='\033[0m'
 
-show_banner() {
+SERVICE_NAME="xrary-bot"
+INSTALL_DIR="/opt/xrary-vpn-bot"
+
+show_header() {
     echo -e "${CYAN}"
-    echo "╔══════════════════════════════════════════════════════════════════╗"
-    echo "║                    XRARY VPN BOT MANAGER                          ║"
-    echo "╚═══════════════════════════════════════════════════════════════════╝"
+    echo "   ██╗  ██╗██████╗  █████╗ ██████╗ ██╗   ██╗"
+    echo "   ╚██╗██╔╝██╔══██╗██╔══██╗██╔══██╗╚██╗ ██╔╝"
+    echo "    ╚███╔╝ ██████╔╝███████║██████╔╝ ╚████╔╝ "
+    echo "    ██╔██╗ ██╔══██╗██╔══██║██╔══██╗  ╚██╔╝  "
+    echo "   ██╔╝ ██╗██║  ██║██║  ██║██║  ██║   ██║   "
+    echo "   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   "
     echo -e "${NC}"
+    echo -e "${WHITE}            VPN Telegram Bot Manager${NC}"
+    echo -e "${BLUE}                 thetemirbolatov${NC}"
+    echo ""
 }
 
 case "$1" in
     start)
-        echo -e "${BLUE}▶ Запуск Xrary VPN Bot...${NC}"
+        echo -e "${CYAN}▸ Starting bot...${NC}"
         systemctl start ${SERVICE_NAME}
-        if [ $? -eq 0 ]; then
-            sleep 2
-            if systemctl is-active --quiet ${SERVICE_NAME}; then
-                echo -e "${GREEN}✅ Бот успешно запущен!${NC}"
-                echo -e "${CYAN}📊 Статус:${NC} systemctl status ${SERVICE_NAME}"
-                echo -e "${CYAN}📝 Логи:${NC} journalctl -u ${SERVICE_NAME} -f"
-            else
-                echo -e "${RED}❌ Ошибка запуска бота${NC}"
-            fi
-        else
-            echo -e "${RED}❌ Ошибка запуска бота${NC}"
-        fi
-        ;;
-    
-    stop)
-        echo -e "${YELLOW}■ Остановка Xrary VPN Bot...${NC}"
+        sleep 2
         if systemctl is-active --quiet ${SERVICE_NAME}; then
-            systemctl stop ${SERVICE_NAME}
-            echo -e "${GREEN}✅ Бот остановлен${NC}"
+            echo -e "${GREEN}✓ Bot started${NC}"
         else
-            echo -e "${YELLOW}⚠️  Бот уже остановлен${NC}"
+            echo -e "${RED}✗ Failed to start${NC}"
         fi
         ;;
-    
+    stop)
+        echo -e "${YELLOW}▸ Stopping bot...${NC}"
+        systemctl stop ${SERVICE_NAME}
+        echo -e "${GREEN}✓ Bot stopped${NC}"
+        ;;
     restart)
-        echo -e "${BLUE}↻ Перезапуск Xrary VPN Bot...${NC}"
+        echo -e "${CYAN}↻ Restarting bot...${NC}"
         systemctl restart ${SERVICE_NAME}
-        if [ $? -eq 0 ]; then
-            sleep 2
-            if systemctl is-active --quiet ${SERVICE_NAME}; then
-                echo -e "${GREEN}✅ Бот успешно перезапущен!${NC}"
-            else
-                echo -e "${RED}❌ Ошибка перезапуска бота${NC}"
-            fi
+        sleep 2
+        if systemctl is-active --quiet ${SERVICE_NAME}; then
+            echo -e "${GREEN}✓ Bot restarted${NC}"
         else
-            echo -e "${RED}❌ Ошибка перезапуска бота${NC}"
+            echo -e "${RED}✗ Failed to restart${NC}"
         fi
         ;;
-    
     status)
-        show_banner
+        show_header
         systemctl status ${SERVICE_NAME}
         ;;
-    
     logs)
-        echo -e "${CYAN}📝 Логи в реальном времени (Ctrl+C для выхода)...${NC}"
+        echo -e "${CYAN}▸ Showing logs (Ctrl+C to exit)...${NC}"
         journalctl -u ${SERVICE_NAME} -f
         ;;
-    
     info)
-        show_banner
-        echo -e "${CYAN}📊 Информация о боте:${NC}\n"
-        echo -e "${BLUE}Автор:${NC}        thetemirbolatov"
-        echo -e "${BLUE}GitHub:${NC}       thetemirbolatov-official"
-        echo -e "${BLUE}Версия:${NC}       2.0.0"
-        echo -e "${BLUE}Директория:${NC}   ${INSTALL_DIR}"
-        echo -e "${BLUE}Сервис:${NC}       ${SERVICE_NAME}"
+        show_header
+        echo -e "${WHITE}Bot Information:${NC}\n"
+        echo -e "  ${BLUE}Author:${NC}     thetemirbolatov"
+        echo -e "  ${BLUE}GitHub:${NC}     thetemirbolatov-official"
+        echo -e "  ${BLUE}Version:${NC}    2.0.0"
+        echo -e "  ${BLUE}Directory:${NC}  ${INSTALL_DIR}"
         echo ""
-        
         if systemctl is-active --quiet ${SERVICE_NAME}; then
-            echo -e "${GREEN}✅ Статус:${NC}      Активен"
+            echo -e "  ${GREEN}● Status:${NC}    Running"
             PID=$(systemctl show --property=MainPID --value ${SERVICE_NAME})
-            echo -e "${GREEN}🔢 PID:${NC}         ${PID}"
-            MEM=$(ps -o rss= -p ${PID} 2>/dev/null | awk '{print $1/1024}')
-            if [ -n "$MEM" ]; then
-                echo -e "${GREEN}💾 Память:${NC}      ${MEM:0:5} MB"
-            fi
+            echo -e "  ${GREEN}● PID:${NC}       ${PID}"
         else
-            echo -e "${RED}❌ Статус:${NC}      Остановлен"
+            echo -e "  ${RED}● Status:${NC}    Stopped"
         fi
         echo ""
-        ;;
-    
-    uninstall)
-        echo -e "${RED}"
-        echo "╔══════════════════════════════════════════════════════════════════╗"
-        echo "║                      ВНИМАНИЕ! УДАЛЕНИЕ!                          ║"
-        echo "╚══════════════════════════════════════════════════════════════════╝"
-        echo -e "${NC}"
-        echo -e "${YELLOW}Это действие полностью удалит Xrary VPN Bot!${NC}"
-        echo -e "${YELLOW}Будут удалены все файлы и настройки.${NC}"
+        echo -e "${CYAN}Contacts:${NC} @thetemirbolatov"
         echo ""
-        read -p "Введите 'YES' для подтверждения: " confirm
-        
+        ;;
+    uninstall)
+        echo -e "${RED}╔══════════════════════════════════════════════╗${NC}"
+        echo -e "${RED}║              WARNING! UNINSTALL               ║${NC}"
+        echo -e "${RED}╚══════════════════════════════════════════════╝${NC}"
+        echo ""
+        read -p "Type 'YES' to confirm: " confirm
         if [ "$confirm" = "YES" ]; then
-            echo -e "${YELLOW}■ Остановка бота...${NC}"
             systemctl stop ${SERVICE_NAME} 2>/dev/null
             systemctl disable ${SERVICE_NAME} 2>/dev/null
-            
-            echo -e "${YELLOW}■ Удаление сервиса...${NC}"
             rm -f /etc/systemd/system/${SERVICE_NAME}.service
-            systemctl daemon-reload
-            
-            echo -e "${YELLOW}■ Удаление команды...${NC}"
             rm -f /usr/local/bin/xrary
-            
-            echo -e "${YELLOW}■ Удаление файлов...${NC}"
             rm -rf ${INSTALL_DIR}
-            
-            echo -e "${GREEN}✅ Xrary VPN Bot полностью удален!${NC}"
+            systemctl daemon-reload
+            echo -e "${GREEN}✓ Xrary VPN Bot removed${NC}"
         else
-            echo -e "${CYAN}❌ Удаление отменено${NC}"
+            echo -e "${CYAN}▸ Cancelled${NC}"
         fi
         ;;
-    
     *)
-        show_banner
-        echo -e "${CYAN}Использование:${NC} xrary {command}\n"
-        echo -e "${GREEN}Команды управления:${NC}"
-        echo -e "  ${BLUE}start${NC}      - Запустить бота"
-        echo -e "  ${BLUE}stop${NC}       - Остановить бота"
-        echo -e "  ${BLUE}restart${NC}    - Перезапустить бота"
-        echo -e "  ${BLUE}status${NC}     - Проверить статус"
+        show_header
+        echo -e "${WHITE}Usage:${NC} xrary {command}\n"
+        echo -e "${CYAN}Commands:${NC}"
+        echo -e "  ${GREEN}start${NC}      Start bot"
+        echo -e "  ${GREEN}stop${NC}       Stop bot"
+        echo -e "  ${GREEN}restart${NC}    Restart bot"
+        echo -e "  ${GREEN}status${NC}     Check status"
+        echo -e "  ${GREEN}logs${NC}       View logs"
+        echo -e "  ${GREEN}info${NC}       Bot info"
+        echo -e "  ${GREEN}uninstall${NC}  Remove bot"
         echo ""
-        echo -e "${GREEN}Информация:${NC}"
-        echo -e "  ${BLUE}logs${NC}       - Показать логи в реальном времени"
-        echo -e "  ${BLUE}info${NC}       - Информация о боте"
-        echo ""
-        echo -e "${GREEN}Система:${NC}"
-        echo -e "  ${BLUE}uninstall${NC}  - Полностью удалить бота"
-        echo ""
-        echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        echo -e "${CYAN}Автор:${NC} thetemirbolatov | GitHub: thetemirbolatov-official"
-        echo -e "${CYAN}Контакты:${NC} VK: thetemirbolatov | Inst: thetemirbolatov | TG: thetemirbolatov"
+        echo -e "${BLUE}────────────────────────────────────────────${NC}"
+        echo -e "${WHITE}Author:${NC} thetemirbolatov"
+        echo -e "${WHITE}GitHub:${NC} thetemirbolatov-official"
         echo ""
         ;;
 esac
 EOF
 
     chmod +x /usr/local/bin/xrary
-    
-    if [ -f "/usr/local/bin/xrary" ]; then
-        print_success "Глобальная команда 'xrary' создана"
-    else
-        print_error "Ошибка создания глобальной команды"
-        exit 1
-    fi
+    print_ok "Command 'xrary' created"
 }
 
-# Запуск бота
-start_bot_service() {
-    print_status "Запуск бота..."
+start_bot() {
+    print_step "Starting bot"
     
-    systemctl enable ${SERVICE_NAME}
+    systemctl enable ${SERVICE_NAME} > /dev/null 2>&1
     systemctl start ${SERVICE_NAME}
     
-    sleep 3
+    print_info "Waiting for bot..."
+    progress 2
     
     if systemctl is-active --quiet ${SERVICE_NAME}; then
-        print_success "Бот успешно запущен и добавлен в автозагрузку!"
-        return 0
+        print_ok "Bot started successfully"
     else
-        print_error "Ошибка запуска бота"
-        print_info "Проверьте логи: journalctl -u ${SERVICE_NAME} -n 50"
-        return 1
+        print_err "Failed to start"
     fi
 }
 
-# Показать информацию о завершении
-show_completion_info() {
+show_done() {
     echo ""
-    echo -e "${GREEN}${BOLD}"
-    echo "╔══════════════════════════════════════════════════════════════════╗"
-    echo "║                  УСТАНОВКА УСПЕШНО ЗАВЕРШЕНА!                      ║"
-    echo "╚══════════════════════════════════════════════════════════════════╝"
-    echo -e "${NC}"
+    echo -e "${GREEN}╔══════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║           INSTALLATION COMPLETE!              ║${NC}"
+    echo -e "${GREEN}╚══════════════════════════════════════════════╝${NC}"
     echo ""
-    echo -e "${CYAN}${BOLD}📋 ИНФОРМАЦИЯ О БОТЕ:${NC}"
-    echo -e "  ${BLUE}Автор:${NC}        thetemirbolatov"
-    echo -e "  ${BLUE}GitHub:${NC}       https://github.com/thetemirbolatov-official"
-    echo -e "  ${BLUE}Версия:${NC}       2.0.0"
-    echo -e "  ${BLUE}Директория:${NC}   ${INSTALL_DIR}"
+    echo -e "${WHITE}XRARY VPN BOT${NC} ${BLUE}v${VERSION}${NC}"
+    echo -e "${CYAN}Author:${NC} thetemirbolatov"
     echo ""
-    echo -e "${CYAN}${BOLD}📱 КОНТАКТЫ:${NC}"
-    echo -e "  ${BLUE}Telegram:${NC}     @thetemirbolatov"
-    echo -e "  ${BLUE}VK:${NC}           vk.com/thetemirbolatov"
-    echo -e "  ${BLUE}Instagram:${NC}    @thetemirbolatov"
+    echo -e "${WHITE}Commands:${NC}"
+    echo -e "  ${GREEN}xrary start${NC}     Start bot"
+    echo -e "  ${GREEN}xrary stop${NC}      Stop bot"
+    echo -e "  ${GREEN}xrary restart${NC}   Restart bot"
+    echo -e "  ${GREEN}xrary status${NC}    Check status"
+    echo -e "  ${GREEN}xrary logs${NC}      View logs"
+    echo -e "  ${GREEN}xrary info${NC}      Bot info"
+    echo -e "  ${GREEN}xrary uninstall${NC} Remove bot"
     echo ""
-    echo -e "${CYAN}${BOLD}🚀 КОМАНДЫ УПРАВЛЕНИЯ:${NC}"
-    echo -e "  ${GREEN}xrary start${NC}      - Запустить бота"
-    echo -e "  ${GREEN}xrary stop${NC}       - Остановить бота"
-    echo -e "  ${GREEN}xrary restart${NC}    - Перезапустить бота"
-    echo -e "  ${GREEN}xrary status${NC}     - Проверить статус"
-    echo -e "  ${GREEN}xrary logs${NC}       - Показать логи"
-    echo -e "  ${GREEN}xrary info${NC}       - Информация о боте"
-    echo -e "  ${GREEN}xrary uninstall${NC}  - Удалить бота"
-    echo ""
-    echo -e "${CYAN}${BOLD}📊 ПОЛЕЗНЫЕ КОМАНДЫ:${NC}"
-    echo -e "  ${BLUE}systemctl status ${SERVICE_NAME}${NC}  - Статус сервиса"
-    echo -e "  ${BLUE}journalctl -u ${SERVICE_NAME} -f${NC}  - Логи в реальном времени"
-    echo -e "  ${BLUE}tail -f ${INSTALL_DIR}/bot.log${NC}     - Просмотр лог-файла"
-    echo ""
-    echo -e "${GREEN}${BOLD}Спасибо за установку Xrary VPN Bot!${NC}"
+    echo -e "${CYAN}Contacts:${NC} @thetemirbolatov (Telegram, VK, Instagram)"
+    echo -e "${CYAN}GitHub:${NC} thetemirbolatov-official"
     echo ""
 }
 
-# ═══════════════════════════════════════════════════════════════════
-# ГЛАВНАЯ ФУНКЦИЯ УСТАНОВКИ
-# ═══════════════════════════════════════════════════════════════════
-
-main_install() {
-    print_banner
-    
-    # Проверки
+main() {
+    print_header
     check_root
-    check_internet
-    check_os
-    
-    # Установка
-    install_system_dependencies
-    clone_repository
-    setup_python_env
-    install_python_packages
-    create_requirements_file
-    create_working_directories
-    create_systemd_service
-    create_global_commands
-    
-    # Запуск
-    start_bot_service
-    
-    # Завершение
-    show_completion_info
+    check_net
+    install_system
+    clone_repo
+    setup_venv
+    install_python
+    create_req
+    create_dirs
+    create_service
+    create_cmd
+    start_bot
+    show_done
 }
 
-# ═══════════════════════════════════════════════════════════════════
-# ЗАПУСК
-# ═══════════════════════════════════════════════════════════════════
-
-main_install "$@"
+main "$@"
