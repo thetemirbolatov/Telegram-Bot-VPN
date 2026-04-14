@@ -6,7 +6,40 @@ Telegram VPN Bot - это мощный и многофункциональный
 
 ---
 
-Оглавление
+Быстрая установка
+
+Автоматическая установка одной командой
+
+```bash
+wget -O - https://raw.githubusercontent.com/thetemirbolatov/Telegram-Bot-VPN/main/install.sh | sudo bash
+```
+
+Эта команда автоматически:
+
+1. Установит Python 3 и pip если они отсутствуют
+2. Установит все необходимые зависимости из requirements.txt
+3. Создаст структуру директорий для бота
+4. Настроит автозапуск через systemd (на Linux системах)
+5. Создаст шаблоны конфигурационных файлов
+
+После автоматической установки
+
+1. Отредактируйте файл vpn.py и укажите:
+   · TOKEN - токен вашего бота от BotFather
+   · ADMIN_ID - ваш Telegram ID
+   · YOOKASSA_SHOP_ID и YOOKASSA_SECRET_KEY в файле yookassa_integration.py
+2. Запустите бота:
+   ```bash
+   sudo systemctl start vpnbot
+   sudo systemctl enable vpnbot
+   ```
+3. Проверьте статус:
+   ```bash
+   sudo systemctl status vpnbot
+   ```
+---
+
+# Оглавление
 
 1. Возможности и функции
 2. Технический стек
@@ -125,40 +158,6 @@ HTTP запросы requests
 · Оперативная память: 1 GB RAM или больше
 · Дисковое пространство: 5 GB свободного места (с учетом логов и бэкапов)
 · Процессор: 1 ядро или больше
-
----
-
-Быстрая установка
-
-Автоматическая установка одной командой
-
-```bash
-wget -O - https://raw.githubusercontent.com/thetemirbolatov/Telegram-Bot-VPN/main/install.sh | sudo bash
-```
-
-Эта команда автоматически:
-
-1. Установит Python 3 и pip если они отсутствуют
-2. Установит все необходимые зависимости из requirements.txt
-3. Создаст структуру директорий для бота
-4. Настроит автозапуск через systemd (на Linux системах)
-5. Создаст шаблоны конфигурационных файлов
-
-После автоматической установки
-
-1. Отредактируйте файл vpn.py и укажите:
-   · TOKEN - токен вашего бота от BotFather
-   · ADMIN_ID - ваш Telegram ID
-   · YOOKASSA_SHOP_ID и YOOKASSA_SECRET_KEY в файле yookassa_integration.py
-2. Запустите бота:
-   ```bash
-   sudo systemctl start vpnbot
-   sudo systemctl enable vpnbot
-   ```
-3. Проверьте статус:
-   ```bash
-   sudo systemctl status vpnbot
-   ```
 
 ---
 
