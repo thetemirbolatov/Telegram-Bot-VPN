@@ -22,7 +22,7 @@ CYAN='\033[0;36m'
 WHITE='\033[1;37m'
 NC='\033[0m'
 
-# Global variables for user input
+# Global variables
 BOT_TOKEN=""
 ADMIN_ID=""
 YOOKASSA_SHOP_ID=""
@@ -109,24 +109,7 @@ check_net() {
     print_ok "Internet OK"
 }
 
-# Function to get user configuration
 get_configuration() {
-    # Проверяем, запущен ли скрипт через pipe
-    if [ ! -t 0 ]; then
-        echo ""
-        echo -e "${YELLOW}╔══════════════════════════════════════════════╗${NC}"
-        echo -e "${YELLOW}║              ВНИМАНИЕ!                        ║${NC}"
-        echo -e "${YELLOW}╚══════════════════════════════════════════════╝${NC}"
-        echo ""
-        echo -e "${WHITE}Скрипт запущен через pipe (wget ... | bash).${NC}"
-        echo -e "${WHITE}Для корректной работы скачайте и запустите:${NC}"
-        echo ""
-        echo -e "${CYAN}wget https://raw.githubusercontent.com/thetemirbolatov/Telegram-Bot-VPN/main/install.sh${NC}"
-        echo -e "${CYAN}sudo bash install.sh${NC}"
-        echo ""
-        exit 1
-    fi
-
     echo ""
     echo -e "${CYAN}──────────────────────────────────────────────────────────────${NC}"
     echo -e "${WHITE}                    CONFIGURATION SETUP${NC}"
@@ -135,8 +118,8 @@ get_configuration() {
     
     # Get Bot Token
     while [ -z "$BOT_TOKEN" ]; do
-        echo -ne "${BLUE}▸${NC} ${WHITE}Enter Telegram Bot API Token:${NC} "
-        read -r BOT_TOKEN </dev/tty
+        printf "${BLUE}▸${NC} ${WHITE}Enter Telegram Bot API Token:${NC} "
+        read BOT_TOKEN
         if [ -z "$BOT_TOKEN" ]; then
             echo -e "  ${RED}✗${NC} Token cannot be empty!"
         fi
@@ -146,8 +129,8 @@ get_configuration() {
     
     # Get Admin ID
     while [ -z "$ADMIN_ID" ]; do
-        echo -ne "${BLUE}▸${NC} ${WHITE}Enter Admin Telegram ID:${NC} "
-        read -r ADMIN_ID </dev/tty
+        printf "${BLUE}▸${NC} ${WHITE}Enter Admin Telegram ID:${NC} "
+        read ADMIN_ID
         if [ -z "$ADMIN_ID" ]; then
             echo -e "  ${RED}✗${NC} Admin ID cannot be empty!"
         elif ! [[ "$ADMIN_ID" =~ ^[0-9]+$ ]]; then
@@ -160,8 +143,8 @@ get_configuration() {
     
     # Get YooKassa Shop ID
     while [ -z "$YOOKASSA_SHOP_ID" ]; do
-        echo -ne "${BLUE}▸${NC} ${WHITE}Enter YooKassa Shop ID:${NC} "
-        read -r YOOKASSA_SHOP_ID </dev/tty
+        printf "${BLUE}▸${NC} ${WHITE}Enter YooKassa Shop ID:${NC} "
+        read YOOKASSA_SHOP_ID
         if [ -z "$YOOKASSA_SHOP_ID" ]; then
             echo -e "  ${RED}✗${NC} Shop ID cannot be empty!"
         fi
@@ -171,8 +154,8 @@ get_configuration() {
     
     # Get YooKassa Secret Key
     while [ -z "$YOOKASSA_SECRET_KEY" ]; do
-        echo -ne "${BLUE}▸${NC} ${WHITE}Enter YooKassa Secret Key:${NC} "
-        read -r YOOKASSA_SECRET_KEY </dev/tty
+        printf "${BLUE}▸${NC} ${WHITE}Enter YooKassa Secret Key:${NC} "
+        read YOOKASSA_SECRET_KEY
         if [ -z "$YOOKASSA_SECRET_KEY" ]; then
             echo -e "  ${RED}✗${NC} Secret Key cannot be empty!"
         fi
@@ -216,13 +199,11 @@ clone_repo() {
     print_ok "Repository cloned"
 }
 
-# Function to inject configuration into vpn.py
 inject_vpn_config() {
     print_step "Injecting configuration into vpn.py"
     
     cd "$INSTALL_DIR"
     
-    # Replace TOKEN in vpn.py
     if [ -f "vpn.py" ]; then
         sed -i "s/TOKEN = 'ваш токен'/TOKEN = '$BOT_TOKEN'/" vpn.py
         sed -i "s/ADMIN_ID = айди в тг ваш/ADMIN_ID = $ADMIN_ID/" vpn.py
@@ -232,7 +213,6 @@ inject_vpn_config() {
     fi
 }
 
-# Function to create yookassa_integration.py with configuration
 create_yookassa_file() {
     print_step "Creating yookassa_integration.py"
     
@@ -244,20 +224,15 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-# Настройки ЮKassa
 YOOKASSA_SHOP_ID = "$YOOKASSA_SHOP_ID"
 YOOKASSA_SECRET_KEY = "$YOOKASSA_SECRET_KEY"
 
-# Инициализация ЮKassa
 Configuration.configure(YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY)
 
 def create_yookassa_payment(amount, description, payment_id, user_id, username, payment_method=None):
-    """Создает платеж в ЮKassa с выбором способа оплаты"""
     try:
-        # Формируем уникальный ID платежа
         idempotence_key = str(uuid.uuid4())
         
-        # Базовые параметры платежа
         payment_params = {
             "amount": {
                 "value": amount,
@@ -277,7 +252,6 @@ def create_yookassa_payment(amount, description, payment_id, user_id, username, 
             "capture": True
         }
         
-        # Добавляем метод оплаты если указан (для тестового магазина доступны карты и ЮMoney)
         if payment_method:
             payment_methods_map = {
                 "bank_card": {"type": "bank_card"},
@@ -291,7 +265,6 @@ def create_yookassa_payment(amount, description, payment_id, user_id, username, 
             if payment_method in payment_methods_map:
                 payment_params["payment_method_data"] = payment_methods_map[payment_method]
         
-        # Создаем платеж
         payment = Payment.create(payment_params, idempotence_key)
         
         return {
@@ -304,9 +277,7 @@ def create_yookassa_payment(amount, description, payment_id, user_id, username, 
         return None
 
 def create_payment_with_methods_menu(user_id, amount, description, payment_id, username):
-    """Создает платеж с выбором способа оплаты через меню"""
     try:
-        # Создаем платеж с возможностью выбора способа
         idempotence_key = str(uuid.uuid4())
         
         payment_params = {
@@ -340,7 +311,6 @@ def create_payment_with_methods_menu(user_id, amount, description, payment_id, u
         return None
 
 def check_payment_status(payment_id):
-    """Проверяет статус платежа в ЮKassa"""
     try:
         payment = Payment.find_one(payment_id)
         return {
@@ -353,7 +323,6 @@ def check_payment_status(payment_id):
         return None
 
 def capture_payment(payment_id):
-    """Подтверждает платеж (если нужно)"""
     try:
         payment = Payment.capture(payment_id)
         return payment.status == "succeeded"
@@ -362,7 +331,7 @@ def capture_payment(payment_id):
         return False
 EOF
 
-    print_ok "yookassa_integration.py created with configuration"
+    print_ok "yookassa_integration.py created"
 }
 
 setup_venv() {
@@ -390,7 +359,7 @@ install_python() {
     source venv/bin/activate
     
     local pkgs=(
-        "pyTelegramBotAPI"
+        "telebot"
         "qrcode"
         "Pillow"
         "openpyxl"
@@ -398,7 +367,6 @@ install_python() {
         "numpy"
         "yookassa"
         "python-dotenv"
-        "requests"
     )
     
     for pkg in "${pkgs[@]}"; do
@@ -431,8 +399,8 @@ create_dirs() {
     print_step "Creating directories"
     
     cd "$INSTALL_DIR"
-    mkdir -p backups exports
-    chmod 755 backups exports
+    mkdir -p backups exports qrcodes
+    chmod 755 backups exports qrcodes
     
     print_ok "Directories created"
 }
@@ -533,7 +501,7 @@ case "$1" in
         show_header
         echo -e "${WHITE}Bot Information:${NC}\n"
         echo -e "  ${BLUE}Author:${NC}     thetemirbolatov"
-        echo -e "  ${BLUE}GitHub:${NC}     thetemirbolatov"
+        echo -e "  ${BLUE}GitHub:${NC}     thetemirbolatov-official"
         echo -e "  ${BLUE}Version:${NC}    2.0.0"
         echo -e "  ${BLUE}Directory:${NC}  ${INSTALL_DIR}"
         echo ""
@@ -602,7 +570,7 @@ case "$1" in
         echo ""
         echo -e "${BLUE}────────────────────────────────────────────${NC}"
         echo -e "${WHITE}Author:${NC} thetemirbolatov"
-        echo -e "${WHITE}GitHub:${NC} thetemirbolatov"
+        echo -e "${WHITE}GitHub:${NC} thetemirbolatov-official"
         echo ""
         ;;
 esac
@@ -625,7 +593,6 @@ start_bot() {
         print_ok "Bot started successfully"
     else
         print_err "Failed to start"
-        print_info "Check logs: journalctl -u ${SERVICE_NAME} -n 20"
     fi
 }
 
