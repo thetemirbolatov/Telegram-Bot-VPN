@@ -111,6 +111,22 @@ check_net() {
 
 # Function to get user configuration
 get_configuration() {
+    # Проверяем, запущен ли скрипт через pipe
+    if [ ! -t 0 ]; then
+        echo ""
+        echo -e "${YELLOW}╔══════════════════════════════════════════════╗${NC}"
+        echo -e "${YELLOW}║              ВНИМАНИЕ!                        ║${NC}"
+        echo -e "${YELLOW}╚══════════════════════════════════════════════╝${NC}"
+        echo ""
+        echo -e "${WHITE}Скрипт запущен через pipe (wget ... | bash).${NC}"
+        echo -e "${WHITE}Для корректной работы скачайте и запустите:${NC}"
+        echo ""
+        echo -e "${CYAN}wget https://raw.githubusercontent.com/thetemirbolatov/Telegram-Bot-VPN/main/install.sh${NC}"
+        echo -e "${CYAN}sudo bash install.sh${NC}"
+        echo ""
+        exit 1
+    fi
+
     echo ""
     echo -e "${CYAN}──────────────────────────────────────────────────────────────${NC}"
     echo -e "${WHITE}                    CONFIGURATION SETUP${NC}"
@@ -120,7 +136,7 @@ get_configuration() {
     # Get Bot Token
     while [ -z "$BOT_TOKEN" ]; do
         echo -ne "${BLUE}▸${NC} ${WHITE}Enter Telegram Bot API Token:${NC} "
-        read -r BOT_TOKEN
+        read -r BOT_TOKEN </dev/tty
         if [ -z "$BOT_TOKEN" ]; then
             echo -e "  ${RED}✗${NC} Token cannot be empty!"
         fi
@@ -131,7 +147,7 @@ get_configuration() {
     # Get Admin ID
     while [ -z "$ADMIN_ID" ]; do
         echo -ne "${BLUE}▸${NC} ${WHITE}Enter Admin Telegram ID:${NC} "
-        read -r ADMIN_ID
+        read -r ADMIN_ID </dev/tty
         if [ -z "$ADMIN_ID" ]; then
             echo -e "  ${RED}✗${NC} Admin ID cannot be empty!"
         elif ! [[ "$ADMIN_ID" =~ ^[0-9]+$ ]]; then
@@ -145,7 +161,7 @@ get_configuration() {
     # Get YooKassa Shop ID
     while [ -z "$YOOKASSA_SHOP_ID" ]; do
         echo -ne "${BLUE}▸${NC} ${WHITE}Enter YooKassa Shop ID:${NC} "
-        read -r YOOKASSA_SHOP_ID
+        read -r YOOKASSA_SHOP_ID </dev/tty
         if [ -z "$YOOKASSA_SHOP_ID" ]; then
             echo -e "  ${RED}✗${NC} Shop ID cannot be empty!"
         fi
@@ -156,7 +172,7 @@ get_configuration() {
     # Get YooKassa Secret Key
     while [ -z "$YOOKASSA_SECRET_KEY" ]; do
         echo -ne "${BLUE}▸${NC} ${WHITE}Enter YooKassa Secret Key:${NC} "
-        read -r YOOKASSA_SECRET_KEY
+        read -r YOOKASSA_SECRET_KEY </dev/tty
         if [ -z "$YOOKASSA_SECRET_KEY" ]; then
             echo -e "  ${RED}✗${NC} Secret Key cannot be empty!"
         fi
@@ -374,7 +390,7 @@ install_python() {
     source venv/bin/activate
     
     local pkgs=(
-        "telebot"
+        "pyTelegramBotAPI"
         "qrcode"
         "Pillow"
         "openpyxl"
@@ -382,6 +398,7 @@ install_python() {
         "numpy"
         "yookassa"
         "python-dotenv"
+        "requests"
     )
     
     for pkg in "${pkgs[@]}"; do
@@ -414,8 +431,8 @@ create_dirs() {
     print_step "Creating directories"
     
     cd "$INSTALL_DIR"
-    mkdir -p backups exports qrcodes
-    chmod 755 backups exports qrcodes
+    mkdir -p backups exports
+    chmod 755 backups exports
     
     print_ok "Directories created"
 }
@@ -535,14 +552,20 @@ case "$1" in
         show_header
         echo -e "${WHITE}Current Configuration:${NC}\n"
         if [ -f "${INSTALL_DIR}/vpn.py" ]; then
-            TOKEN=$(grep "^TOKEN = " "${INSTALL_DIR}/vpn.py" | cut -d"'" -f2)
-            ADMIN=$(grep "^ADMIN_ID = " "${INSTALL_DIR}/vpn.py" | cut -d' ' -f3)
-            echo -e "  ${BLUE}Bot Token:${NC}    ${TOKEN:0:10}..."
-            echo -e "  ${BLUE}Admin ID:${NC}     ${ADMIN}"
+            TOKEN=$(grep "^TOKEN = " "${INSTALL_DIR}/vpn.py" 2>/dev/null | cut -d"'" -f2)
+            ADMIN=$(grep "^ADMIN_ID = " "${INSTALL_DIR}/vpn.py" 2>/dev/null | grep -o '[0-9]*')
+            if [ -n "$TOKEN" ]; then
+                echo -e "  ${BLUE}Bot Token:${NC}    ${TOKEN:0:15}..."
+            fi
+            if [ -n "$ADMIN" ]; then
+                echo -e "  ${BLUE}Admin ID:${NC}     ${ADMIN}"
+            fi
         fi
         if [ -f "${INSTALL_DIR}/yookassa_integration.py" ]; then
-            SHOP_ID=$(grep "^YOOKASSA_SHOP_ID = " "${INSTALL_DIR}/yookassa_integration.py" | cut -d'"' -f2)
-            echo -e "  ${BLUE}Shop ID:${NC}      ${SHOP_ID}"
+            SHOP_ID=$(grep "^YOOKASSA_SHOP_ID = " "${INSTALL_DIR}/yookassa_integration.py" 2>/dev/null | cut -d'"' -f2)
+            if [ -n "$SHOP_ID" ]; then
+                echo -e "  ${BLUE}Shop ID:${NC}      ${SHOP_ID}"
+            fi
         fi
         echo ""
         ;;
@@ -602,6 +625,7 @@ start_bot() {
         print_ok "Bot started successfully"
     else
         print_err "Failed to start"
+        print_info "Check logs: journalctl -u ${SERVICE_NAME} -n 20"
     fi
 }
 
